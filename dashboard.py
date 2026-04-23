@@ -102,7 +102,18 @@ def formatar_mes(m):
 @st.cache_data(ttl=3600, show_spinner=False)
 def carregar_dados():
     try:
-        client = bigquery.Client(project="meli-bi-data")
+        if "gcp" in st.secrets:
+            from google.oauth2.credentials import Credentials
+            creds = Credentials(
+                token=None,
+                refresh_token=st.secrets["gcp"]["refresh_token"],
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=st.secrets["gcp"]["client_id"],
+                client_secret=st.secrets["gcp"]["client_secret"]
+            )
+            client = bigquery.Client(project="meli-bi-data", credentials=creds)
+        else:
+            client = bigquery.Client(project="meli-bi-data")
         q = """
         SELECT
             NOME_USUARIO, PAIS, EQUIPE_NIVEL_2, EQUIPE_NIVEL_3, ID, NOME, CODIGO,
