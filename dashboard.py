@@ -104,13 +104,16 @@ def carregar_dados():
     try:
         if "gcp" in st.secrets:
             from google.oauth2.credentials import Credentials
+            import google.auth.transport.requests
             creds = Credentials(
                 token=None,
                 refresh_token=st.secrets["gcp"]["refresh_token"],
                 token_uri="https://oauth2.googleapis.com/token",
                 client_id=st.secrets["gcp"]["client_id"],
-                client_secret=st.secrets["gcp"]["client_secret"]
+                client_secret=st.secrets["gcp"]["client_secret"],
+                universe_domain="googleapis.com"
             )
+            creds.refresh(google.auth.transport.requests.Request())
             client = bigquery.Client(project="meli-bi-data", credentials=creds)
         else:
             client = bigquery.Client(project="meli-bi-data")
