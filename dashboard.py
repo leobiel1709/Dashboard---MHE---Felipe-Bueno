@@ -158,7 +158,7 @@ st.markdown("""
 <div class="dash-header">
   <div class="dash-header-left">
     <h1>📊 Dashboard de Compras</h1>
-    <p>Dados em tempo real via BigQuery &nbsp;·&nbsp; Atualização automática a cada hora</p>
+    <p>Dados em tempo real via BigQuery &nbsp;·&nbsp; Feito por Leonardo Gabriel Simoes</p>
   </div>
   <div class="dash-header-badge">👤 Felipe Bueno</div>
 </div>
