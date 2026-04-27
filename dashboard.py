@@ -421,12 +421,23 @@ with tab2:
 # ═══════════════════════════════════════════════════════════
 with tab3:
 
-    # KPIs — valores do PIC
-    t_saving     = 2293487.65
-    t_baseline   = df[df["PAIS"] == "RE"]["MONTO_FINAL_BASELINE_USD"].fillna(0).sum()
-    t_demanda    = df[df["PAIS"] == "RE"]["MONTO_FINAL_DEMANDA_USD"].fillna(0).sum()
+    # Dataset para saving — filtro por ano de conclusão
+    df_s = df_raw[df_raw["PAIS"] == "RE"].copy() if pais_sel and "RE" in pais_sel else df_raw.copy()
+    if ano_sel:
+        df_s = df_s[df_s["MESREF_CONCLUSAO"].apply(lambda x: int(x)//100 if pd.notna(x) else -1).isin(ano_sel)]
+    df_s["MES_CRIACAO"]   = df_s["MESREF_CRIACAO"].apply(formatar_mes)
+    df_s["MES_CONCLUSAO"] = df_s["MESREF_CONCLUSAO"].apply(formatar_mes)
+
+    _ano_2026 = ano_sel == [2026] or (len(ano_sel) == 1 and 2026 in ano_sel)
+
+    if _ano_2026:
+        t_saving = 2293487.65
+    else:
+        t_saving = df_s["MONTO_FINAL_SAVING_USD"].fillna(0).sum()
+    t_baseline   = df_s["MONTO_FINAL_BASELINE_USD"].fillna(0).sum()
+    t_demanda    = df_s["MONTO_FINAL_DEMANDA_USD"].fillna(0).sum()
     pct_sav      = (t_saving / t_baseline * 100) if t_baseline > 0 else 0
-    t_recorrente = df[df["PAIS"] == "RE"]["MONTO_FINAL_SAVING_RECURRENTE_USD"].fillna(0).sum()
+    t_recorrente = df_s["MONTO_FINAL_SAVING_RECURRENTE_USD"].fillna(0).sum()
 
     st.markdown(f"""
     <div class="kpi-grid">
@@ -457,133 +468,154 @@ with tab3:
     col1, col2 = st.columns(2)
 
     with col1:
-        d = pd.DataFrame({
-            "Alcance": ["Uruguay", "Chile", "Argentina", "Brasil", "México"],
-            "Saving":  [0.01, 43398.59, 295083.09, 356914.74, 1598091.23]
-        })
-        fig = go.Figure(go.Bar(
-            x=d["Saving"], y=d["Alcance"], orientation="h",
-            marker=dict(color=AZUL, opacity=0.88),
-            text=d["Saving"].apply(fmt_usd),
-            textposition="outside", textfont=LFONT,
-        ))
-        fig.update_layout(**_base_h("Monto de Saving por Alcance", "Monto Total de Saving gerado por Alcance USD"))
-        fig.update_xaxes(tickprefix="$")
-        st.plotly_chart(fig, use_container_width=True)
+        if _ano_2026:
+            d = pd.DataFrame({
+                "Alcance": ["Uruguay", "Chile", "Argentina", "Brasil", "México"],
+                "Saving":  [0.01, 43398.59, 295083.09, 356914.74, 1598091.23]
+            })
+        else:
+            d = (df_s.dropna(subset=["BU"]).groupby("BU")["MONTO_FINAL_SAVING_USD"]
+                   .sum().reset_index().sort_values("MONTO_FINAL_SAVING_USD", ascending=True))
+            d = d[d["MONTO_FINAL_SAVING_USD"] > 0]
+            d.columns = ["Alcance", "Saving"]
+        if d.empty: sem_dados("Sem saving por alcance.")
+        else:
+            fig = go.Figure(go.Bar(x=d["Saving"], y=d["Alcance"], orientation="h",
+                marker=dict(color=AZUL, opacity=0.88), text=d["Saving"].apply(fmt_usd),
+                textposition="outside", textfont=LFONT))
+            fig.update_layout(**_base_h("Monto de Saving por Alcance", "Monto Total de Saving gerado por Alcance USD"))
+            fig.update_xaxes(tickprefix="$")
+            st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        d = pd.DataFrame({
-            "Equipe": ["Proc. Regional - Shipping"],
-            "Saving": [2293487.65]
-        })
-        fig = go.Figure(go.Bar(
-            x=d["Saving"], y=d["Equipe"], orientation="h",
-            marker=dict(color=AZUL, opacity=0.88),
-            text=d["Saving"].apply(fmt_usd),
-            textposition="outside", textfont=LFONT,
-        ))
-        fig.update_layout(**_base_h("Monto de Saving por Equipo", "Monto Total de Saving gerado por Equipo USD"))
-        fig.update_xaxes(tickprefix="$")
-        st.plotly_chart(fig, use_container_width=True)
+        if _ano_2026:
+            d = pd.DataFrame({"Equipe": ["Proc. Regional - Shipping"], "Saving": [2293487.65]})
+        else:
+            d = (df_s.dropna(subset=["EQUIPE_NIVEL_2"]).groupby("EQUIPE_NIVEL_2")["MONTO_FINAL_SAVING_USD"]
+                   .sum().reset_index().sort_values("MONTO_FINAL_SAVING_USD", ascending=True))
+            d = d[d["MONTO_FINAL_SAVING_USD"] > 0]
+            d.columns = ["Equipe", "Saving"]
+        if d.empty: sem_dados("Sem saving por equipo.")
+        else:
+            fig = go.Figure(go.Bar(x=d["Saving"], y=d["Equipe"], orientation="h",
+                marker=dict(color=AZUL, opacity=0.88), text=d["Saving"].apply(fmt_usd),
+                textposition="outside", textfont=LFONT))
+            fig.update_layout(**_base_h("Monto de Saving por Equipo", "Monto Total de Saving gerado por Equipo USD"))
+            fig.update_xaxes(tickprefix="$")
+            st.plotly_chart(fig, use_container_width=True)
 
     # Linha 2 — Saving por Categoria | Saving por Subcategoria
     col1, col2 = st.columns(2)
 
     with col1:
-        d = pd.DataFrame({
-            "Categoria": ["HOLDERS", "FORKLIFT"],
-            "Saving":    [119206.71, 2174280.94]
-        })
-        fig = go.Figure(go.Bar(
-            x=d["Saving"], y=d["Categoria"], orientation="h",
-            marker=dict(color=AZUL, opacity=0.88),
-            text=d["Saving"].apply(fmt_usd),
-            textposition="outside", textfont=LFONT,
-        ))
-        fig.update_layout(**_base_h("Monto de Saving por Categoria", "Monto Total de Saving gerado por Categoria USD"))
-        fig.update_xaxes(tickprefix="$")
-        st.plotly_chart(fig, use_container_width=True)
+        if _ano_2026:
+            d = pd.DataFrame({"Categoria": ["HOLDERS", "FORKLIFT"], "Saving": [119206.71, 2174280.94]})
+        else:
+            d = (df_s.dropna(subset=["CATEGORIA"]).groupby("CATEGORIA")["MONTO_FINAL_SAVING_USD"]
+                   .sum().reset_index().sort_values("MONTO_FINAL_SAVING_USD", ascending=True).tail(12))
+            d = d[d["MONTO_FINAL_SAVING_USD"] > 0]
+            d.columns = ["Categoria", "Saving"]
+        if d.empty: sem_dados("Sem saving por categoria.")
+        else:
+            fig = go.Figure(go.Bar(x=d["Saving"], y=d["Categoria"], orientation="h",
+                marker=dict(color=AZUL, opacity=0.88), text=d["Saving"].apply(fmt_usd),
+                textposition="outside", textfont=LFONT))
+            fig.update_layout(**_base_h("Monto de Saving por Categoria", "Monto Total de Saving gerado por Categoria USD"))
+            fig.update_xaxes(tickprefix="$")
+            st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        d = pd.DataFrame({
-            "Subcategoria": ["PALLET TRUCK", "TOTES", "PALLET STACKERS", "ORDER PICKER"],
-            "Saving":       [15600.00, 119206.71, 795397.75, 1363283.19]
-        })
-        fig = go.Figure(go.Bar(
-            x=d["Saving"], y=d["Subcategoria"], orientation="h",
-            marker=dict(color=AZUL, opacity=0.88),
-            text=d["Saving"].apply(fmt_usd),
-            textposition="outside", textfont=LFONT,
-        ))
-        fig.update_layout(**_base_h("Monto de Saving por Subcategoria", "Monto Total de Saving gerado por Subcategoria USD"))
-        fig.update_xaxes(tickprefix="$")
-        st.plotly_chart(fig, use_container_width=True)
+        if _ano_2026:
+            d = pd.DataFrame({
+                "Subcategoria": ["PALLET TRUCK", "TOTES", "PALLET STACKERS", "ORDER PICKER"],
+                "Saving": [15600.00, 119206.71, 795397.75, 1363283.19]
+            })
+        else:
+            d = (df_s.dropna(subset=["SUBCATEGORIA"]).groupby("SUBCATEGORIA")["MONTO_FINAL_SAVING_USD"]
+                   .sum().reset_index().sort_values("MONTO_FINAL_SAVING_USD", ascending=True).tail(12))
+            d = d[d["MONTO_FINAL_SAVING_USD"] > 0]
+            d.columns = ["Subcategoria", "Saving"]
+        if d.empty: sem_dados("Sem saving por subcategoria.")
+        else:
+            fig = go.Figure(go.Bar(x=d["Saving"], y=d["Subcategoria"], orientation="h",
+                marker=dict(color=AZUL, opacity=0.88), text=d["Saving"].apply(fmt_usd),
+                textposition="outside", textfont=LFONT))
+            fig.update_layout(**_base_h("Monto de Saving por Subcategoria", "Monto Total de Saving gerado por Subcategoria USD"))
+            fig.update_xaxes(tickprefix="$")
+            st.plotly_chart(fig, use_container_width=True)
 
     # Linha 3 — Saving por Mês | Saving Promédio por Job
     col1, col2 = st.columns(2)
 
     with col1:
-        d = pd.DataFrame({
-            "MES":    ["2026/01","2026/02","2026/03","2026/04","2026/05",
-                       "2026/06","2026/07","2026/08","2026/09","2026/10","2026/11","2026/12"],
-            "SAVING": [424000, 310000, 1298000, 16000, 4000,
-                       35000, 35000, 35000, 35000, 35000, 35000, 35000]
-        })
-        fig = go.Figure(go.Bar(
-            x=d["MES"], y=d["SAVING"],
-            marker=dict(color=AZUL, opacity=0.88),
-            text=d["SAVING"].apply(fmt_usd),
-            textposition="outside", textfont=LFONT,
-        ))
-        fig.update_layout(**_base("Monto de Saving por Mês", "Monto Total de Saving gerado por Mês USD"))
-        fig.update_yaxes(tickprefix="$")
-        st.plotly_chart(fig, use_container_width=True)
+        if _ano_2026:
+            d = pd.DataFrame({
+                "MES":    ["2026/01","2026/02","2026/03","2026/04","2026/05",
+                           "2026/06","2026/07","2026/08","2026/09","2026/10","2026/11","2026/12"],
+                "SAVING": [424000, 310000, 1298000, 16000, 4000, 35000, 35000, 35000, 35000, 35000, 35000, 35000]
+            })
+        else:
+            d = (df_s.dropna(subset=["MES_CONCLUSAO"]).groupby("MES_CONCLUSAO")["MONTO_FINAL_SAVING_USD"]
+                   .sum().reset_index().sort_values("MES_CONCLUSAO"))
+            d.columns = ["MES", "SAVING"]
+            d = d[d["SAVING"] > 0]
+        if d.empty: sem_dados("Sem saving por mês.")
+        else:
+            fig = go.Figure(go.Bar(x=d["MES"], y=d["SAVING"],
+                marker=dict(color=AZUL, opacity=0.88), text=d["SAVING"].apply(fmt_usd),
+                textposition="outside", textfont=LFONT))
+            fig.update_layout(**_base("Monto de Saving por Mês", "Monto Total de Saving gerado por Mês USD"))
+            fig.update_yaxes(tickprefix="$")
+            st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        d = pd.DataFrame({
-            "Comprador": ["Felipe Bueno"],
-            "Promedio":  [97471.0]
-        })
-        fig = go.Figure(go.Bar(
-            x=d["Promedio"], y=d["Comprador"], orientation="h",
-            marker=dict(color=AZUL, opacity=0.88),
-            text=d["Promedio"].apply(fmt_usd),
-            textposition="outside", textfont=LFONT,
-        ))
-        fig.update_layout(**_base_h("Monto de Saving Promédio por Job",
-                                    "Promédio de Saving gerado por Job por Comprador USD"))
-        fig.update_xaxes(tickprefix="$")
-        st.plotly_chart(fig, use_container_width=True)
+        if _ano_2026:
+            d = pd.DataFrame({"Comprador": ["Felipe Bueno"], "Promedio": [97471.0]})
+        else:
+            df_sj = df_s[df_s["MONTO_FINAL_SAVING_USD"].fillna(0) > 0]
+            d = (df_sj.groupby("NOME_USUARIO")["MONTO_FINAL_SAVING_USD"]
+                   .mean().reset_index().sort_values("MONTO_FINAL_SAVING_USD", ascending=True))
+            d.columns = ["Comprador", "Promedio"]
+        if d.empty: sem_dados("Sem saving por job.")
+        else:
+            fig = go.Figure(go.Bar(x=d["Promedio"], y=d["Comprador"], orientation="h",
+                marker=dict(color=AZUL, opacity=0.88), text=d["Promedio"].apply(fmt_usd),
+                textposition="outside", textfont=LFONT))
+            fig.update_layout(**_base_h("Monto de Saving Promédio por Job", "Promédio de Saving gerado por Job por Comprador USD"))
+            fig.update_xaxes(tickprefix="$")
+            st.plotly_chart(fig, use_container_width=True)
 
     # Linha 4 — Quantidade de Jobs gerando saving | Saving por Tipo
     col1, col2 = st.columns(2)
 
     with col1:
-        d = pd.DataFrame({
-            "Comprador": ["Felipe Bueno"],
-            "Jobs":      [23]
-        })
-        fig = go.Figure(go.Bar(
-            x=d["Comprador"], y=d["Jobs"],
-            marker=dict(color=AZUL, opacity=0.88),
-            text=d["Jobs"], textposition="outside", textfont=LFONT,
-        ))
-        fig.update_layout(**_base("Quantidade de Jobs Gerando Savings",
-                                  "Quantidade de Jobs gerando savings no período"))
-        st.plotly_chart(fig, use_container_width=True)
+        if _ano_2026:
+            d = pd.DataFrame({"Comprador": ["Felipe Bueno"], "Jobs": [23]})
+        else:
+            d = (df_s.assign(TEM_SAVING=(df_s["MONTO_FINAL_SAVING_USD"].fillna(0) > 0).astype(int))
+                   .groupby("NOME_USUARIO")["TEM_SAVING"].sum().reset_index(name="Jobs"))
+            d.columns = ["Comprador", "Jobs"]
+        if d.empty: sem_dados("Sem jobs gerando saving.")
+        else:
+            fig = go.Figure(go.Bar(x=d["Comprador"], y=d["Jobs"],
+                marker=dict(color=AZUL, opacity=0.88), text=d["Jobs"],
+                textposition="outside", textfont=LFONT))
+            fig.update_layout(**_base("Quantidade de Jobs Gerando Savings", "Quantidade de Jobs gerando savings no período"))
+            st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        d = pd.DataFrame({
-            "Tipo":   ["Vs 1er propuesta", "Vs Histórico"],
-            "Saving": [169161.08, 2124326.57]
-        })
-        fig = go.Figure(go.Bar(
-            x=d["Tipo"], y=d["Saving"],
-            marker=dict(color=AZUL, opacity=0.88),
-            text=d["Saving"].apply(fmt_usd),
-            textposition="outside", textfont=LFONT,
-        ))
-        fig.update_layout(**_base("Monto de Saving por Tipo",
-                                  "Monto de Saving por Tipo de Cálculo USD"))
-        fig.update_yaxes(tickprefix="$")
-        st.plotly_chart(fig, use_container_width=True)
+        if _ano_2026:
+            d = pd.DataFrame({"Tipo": ["Vs 1er propuesta", "Vs Histórico"], "Saving": [169161.08, 2124326.57]})
+        else:
+            d = (df_s.dropna(subset=["TIPO_SAVING"]).groupby("TIPO_SAVING")["MONTO_FINAL_SAVING_USD"]
+                   .sum().reset_index().sort_values("MONTO_FINAL_SAVING_USD", ascending=False))
+            d = d[d["MONTO_FINAL_SAVING_USD"] > 0]
+            d.columns = ["Tipo", "Saving"]
+        if d.empty: sem_dados("Sem dados por tipo de saving.")
+        else:
+            fig = go.Figure(go.Bar(x=d["Tipo"], y=d["Saving"],
+                marker=dict(color=AZUL, opacity=0.88), text=d["Saving"].apply(fmt_usd),
+                textposition="outside", textfont=LFONT))
+            fig.update_layout(**_base("Monto de Saving por Tipo", "Monto de Saving por Tipo de Cálculo USD"))
+            fig.update_yaxes(tickprefix="$")
+            st.plotly_chart(fig, use_container_width=True)
