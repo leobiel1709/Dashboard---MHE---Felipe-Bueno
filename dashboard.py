@@ -158,9 +158,8 @@ st.markdown("""
 <div class="dash-header">
   <div class="dash-header-left">
     <h1>📊 Dashboard de Compras</h1>
-    <p>Dados em tempo real via BigQuery &nbsp;·&nbsp; Feito por Leonardo Gabriel Simoes</p>
   </div>
-  <div class="dash-header-badge">👤 Felipe Bueno</div>
+  <div class="dash-header-badge">👥 Equipe Regional</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -203,15 +202,18 @@ tab1, tab2, tab3 = st.tabs([
 # ═══════════════════════════════════════════════════════════
 with tab1:
 
-    monto_total = df_conc["MONTO_FINAL_PREMIADO_USD"].fillna(0).sum()
-    em_proc     = len(df[df["STATUS"] == "en proceso"])
-    cancelados  = len(df[df["STATUS"] == "cancelado"])
+    monto_total  = df_conc["MONTO_FINAL_PREMIADO_USD"].fillna(0).sum()
+    em_proc      = len(df[df["STATUS"] == "en proceso"])
+    cancelados   = len(df[df["STATUS"] == "cancelado"])
+    # Conta todos os jobs concluídos sem filtro de ano para bater com o PIC
+    _pais_filter = df_raw["PAIS"].isin(pais_sel) if pais_sel else pd.Series([True]*len(df_raw), index=df_raw.index)
+    total_conc   = int((_pais_filter & (df_raw["STATUS"] == "concluido")).sum())
 
     st.markdown(f"""
     <div class="kpi-grid">
       <div class="kpi-card" style="border-color:#10B981">
         <div class="kpi-icon">✅</div><div class="kpi-label">Jobs Concluídos</div>
-        <div class="kpi-value">{len(df_conc):,}</div><div class="kpi-sub">base dos gráficos</div>
+        <div class="kpi-value">{total_conc:,}</div><div class="kpi-sub">base dos gráficos</div>
       </div>
       <div class="kpi-card" style="border-color:#F59E0B">
         <div class="kpi-icon">⏳</div><div class="kpi-label">Em Processo</div>
@@ -262,8 +264,8 @@ with tab1:
             fig.update_layout(**_base("Quantidade de Jobs por Mês", "Quantidade de Jobs de Negociação Concluídos por Mês"))
             st.plotly_chart(fig, use_container_width=True)
 
-    # Linha 2 — Monto por Comprador | Quantidade por Comprador | Monto por Subcategoria
-    col1, col2, col3 = st.columns(3)
+    # Linha 2 — Monto por Comprador | Monto por Subcategoria
+    col1, col2 = st.columns(2)
 
     with col1:
         d = (df_conc.groupby("NOME_USUARIO")["MONTO_FINAL_PREMIADO_USD"].sum()
@@ -282,18 +284,6 @@ with tab1:
             st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        d = df_conc.groupby("NOME_USUARIO").size().reset_index(name="Jobs")
-        if d.empty: sem_dados()
-        else:
-            fig = go.Figure(go.Bar(
-                x=d["NOME_USUARIO"], y=d["Jobs"],
-                marker=dict(color=AZUL, opacity=0.88),
-                text=d["Jobs"], textposition="outside", textfont=LFONT,
-            ))
-            fig.update_layout(**_base("Quantidade por Comprador", "Quantidade de Jobs Concluídos por Comprador no período"))
-            st.plotly_chart(fig, use_container_width=True)
-
-    with col3:
         d = (df_conc.dropna(subset=["SUBCATEGORIA"])
                .groupby("SUBCATEGORIA")["MONTO_FINAL_PREMIADO_USD"].sum()
                .reset_index()
