@@ -324,18 +324,21 @@ with tab1:
 # ═══════════════════════════════════════════════════════════
 with tab2:
 
-    df["ARIBA_LABEL"] = df["ADOCAO_SISTEMA"].map({1: "Ariba", 0: "Fuera de Ariba"})
-    df_conc["ARIBA_LABEL"] = df_conc["ADOCAO_SISTEMA"].map({1: "Ariba", 0: "Fuera de Ariba"})
+    df_ariba = df[df["ADOCAO_SISTEMA"].isin([0, 1])].copy()
+    df_ariba["ARIBA_LABEL"] = df_ariba["ADOCAO_SISTEMA"].map({1: "Ariba", 0: "Fuera de Ariba"})
+    df_conc_ariba = df_conc[df_conc["ADOCAO_SISTEMA"].isin([0, 1])].copy()
+    df_conc_ariba["ARIBA_LABEL"] = df_conc_ariba["ADOCAO_SISTEMA"].map({1: "Ariba", 0: "Fuera de Ariba"})
 
-    ariba_tot  = int((df["ADOCAO_SISTEMA"] == 1).sum())
-    fuera_tot  = int((df["ADOCAO_SISTEMA"] == 0).sum())
-    pct_ariba  = ariba_tot / (len(df) or 1) * 100
+    ariba_tot  = int((df_ariba["ADOCAO_SISTEMA"] == 1).sum())
+    fuera_tot  = int((df_ariba["ADOCAO_SISTEMA"] == 0).sum())
+    total_ariba = ariba_tot + fuera_tot
+    pct_ariba  = ariba_tot / (total_ariba or 1) * 100
 
     st.markdown(f"""
     <div class="kpi-grid">
       <div class="kpi-card" style="border-color:#3483FA">
         <div class="kpi-icon">📦</div><div class="kpi-label">Total de Jobs</div>
-        <div class="kpi-value">{len(df):,}</div><div class="kpi-sub">todos os períodos</div>
+        <div class="kpi-value">{total_ariba:,}</div><div class="kpi-sub">todos os períodos</div>
       </div>
       <div class="kpi-card" style="border-color:#10B981">
         <div class="kpi-icon">✅</div><div class="kpi-label">Com Ariba</div>
@@ -347,7 +350,7 @@ with tab2:
       </div>
       <div class="kpi-card" style="border-color:#8B5CF6">
         <div class="kpi-icon">🌎</div><div class="kpi-label">Países Ativos</div>
-        <div class="kpi-value">{df["PAIS"].nunique()}</div><div class="kpi-sub">com registros</div>
+        <div class="kpi-value">{df_ariba["PAIS"].nunique()}</div><div class="kpi-sub">com registros</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -356,7 +359,7 @@ with tab2:
     col1, col2 = st.columns(2)
 
     with col1:
-        d = (df_conc.dropna(subset=["ARIBA_LABEL"]).groupby("ARIBA_LABEL")["MONTO_FINAL_PREMIADO_USD"].sum()
+        d = (df_conc_ariba.groupby("ARIBA_LABEL")["MONTO_FINAL_PREMIADO_USD"].sum()
                .reset_index().sort_values("MONTO_FINAL_PREMIADO_USD", ascending=False))
         if d.empty: sem_dados()
         else:
@@ -371,7 +374,7 @@ with tab2:
             st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        d = (df_conc.dropna(subset=["ARIBA_LABEL"]).groupby(["NOME_USUARIO", "ARIBA_LABEL"])["MONTO_FINAL_PREMIADO_USD"].sum()
+        d = (df_conc_ariba.groupby(["NOME_USUARIO", "ARIBA_LABEL"])["MONTO_FINAL_PREMIADO_USD"].sum()
                .reset_index())
         if d.empty: sem_dados()
         else:
@@ -394,7 +397,7 @@ with tab2:
             st.plotly_chart(fig, use_container_width=True)
 
     # Monto por Ariba & Fuera de Ariba por Mês
-    d = (df_conc.dropna(subset=["MES_CONCLUSAO", "ARIBA_LABEL"])
+    d = (df_conc_ariba.dropna(subset=["MES_CONCLUSAO"])
            .groupby(["MES_CONCLUSAO", "ARIBA_LABEL"])["MONTO_FINAL_PREMIADO_USD"].sum()
            .reset_index().sort_values("MES_CONCLUSAO"))
     if not d.empty:
