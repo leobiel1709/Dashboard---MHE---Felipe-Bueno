@@ -168,7 +168,7 @@ with st.sidebar:
     st.markdown("### Filtros")
     st.divider()
     paises    = sorted(df_raw["PAIS"].dropna().unique())
-    pais_sel  = st.multiselect("🌎 País", paises, default=["RE"] if "RE" in paises else list(paises))
+    pais_sel  = st.multiselect("🌎 País", paises, default=list(paises))
     equipes   = sorted(df_raw["EQUIPE_NIVEL_2"].dropna().unique())
     eq_sel    = st.multiselect("👥 Equipe", equipes, default=list(equipes))
     anos      = sorted(df_raw["MESREF_CONCLUSAO"].dropna().apply(lambda x: int(x)//100).unique(), reverse=True)
