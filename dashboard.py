@@ -421,9 +421,8 @@ with tab2:
 # ═══════════════════════════════════════════════════════════
 with tab3:
 
-    # Dataset para saving — filtro por ano de criação (igual ao PIC)
+    # Dataset para saving — todos os países, filtro por ano de criação (igual ao PIC)
     df_s = df_raw.copy()
-    if pais_sel: df_s = df_s[df_s["PAIS"].isin(pais_sel)]
     if ano_sel:
         df_s = df_s[df_s["MESREF_CRIACAO"].apply(lambda x: int(x)//100 if pd.notna(x) else -1).isin(ano_sel)]
     df_s["MES_CRIACAO"]   = df_s["MESREF_CRIACAO"].apply(formatar_mes)
