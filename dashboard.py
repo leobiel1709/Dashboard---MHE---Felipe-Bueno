@@ -205,9 +205,7 @@ with tab1:
     monto_total  = df_conc["MONTO_FINAL_PREMIADO_USD"].fillna(0).sum()
     em_proc      = len(df[df["STATUS"] == "en proceso"])
     cancelados   = len(df[df["STATUS"] == "cancelado"])
-    # Conta todos os jobs concluídos sem filtro de ano para bater com o PIC
-    _pais_filter = df_raw["PAIS"].isin(pais_sel) if pais_sel else pd.Series([True]*len(df_raw), index=df_raw.index)
-    total_conc   = int((_pais_filter & (df_raw["STATUS"] == "concluido")).sum())
+    total_conc   = len(df_conc)
 
     st.markdown(f"""
     <div class="kpi-grid">
